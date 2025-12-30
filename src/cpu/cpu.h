@@ -27,6 +27,7 @@ typedef struct{
 
 }CPU;
 
+
 extern CPU cpu;
 
 void CPU_Init();
