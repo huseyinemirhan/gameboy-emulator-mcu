@@ -7,26 +7,9 @@
 
 #include "cpu/cpu.h"
 #include "memory/memory.h"
+#include "memory/sd_card.h"
+#include "memory/cartridge.h"
 #include <stdio.h>
-
-void Load_Test_Rom(){
-
-	    Memory_Write_Byte(0x0000, 0x3E); // LD A, 0xAB
-	    Memory_Write_Byte(0x0001, 0xAB);
-
-	    Memory_Write_Byte(0x0002, 0x26); // LD H, 0xC0 (Point HL to Work RAM)
-	    Memory_Write_Byte(0x0003, 0xC0);
-	    Memory_Write_Byte(0x0004, 0x2E); // LD L, 0x05
-	    Memory_Write_Byte(0x0005, 0x05);
-
-	    // --- Step 2: Move data through memory ---
-	    Memory_Write_Byte(0x0006, 0x77); // LD (HL), A  -> Writes 0xAB to 0xC005
-	    Memory_Write_Byte(0x0007, 0x46); // LD B, (HL) -> Reads 0xC005 into B
-	    Memory_Write_Byte(0x0008, 0x48); // LD C, B    -> Copies B into C
-
-	    // --- Step 3: End ---
-	    Memory_Write_Byte(0x0009, 0x00); // NOP
-}
 
 void print_debug(){
 	printf("PC: %d Cycles: %d\n",cpu.PC,cpu.cycles);
@@ -39,10 +22,9 @@ void print_debug(){
 
 
 int main(){
-
-	CPU_Init();
 	Memory_Init();
-	Load_Test_Rom();
+	Cartridge_Init(&memory.cartridge, rom_data);
+	CPU_Init();
 
 	for(int i = 0; i<7; i++){
 		CPU_Step();

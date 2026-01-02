@@ -163,7 +163,7 @@ static int op_undefined(){
 }
 
 
-opcode_func opcode_func_table[256] = {
+const opcode_func opcode_func_table[256] = {
     [0x00 ... 0xFF] = op_undefined,
 
     [0x00] = op_00,
