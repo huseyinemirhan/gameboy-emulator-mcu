@@ -26,9 +26,11 @@ int main(){
 	Cartridge_Init(&memory.cartridge, rom_data);
 	CPU_Init();
 
-	for(int i = 0; i<7; i++){
-		CPU_Step();
-		print_debug();
+	while(1){
+
+	}
+	for(int i = 0; i<10, i++){
+		int cpu_cyles = CPU_Step();
 	}
 
 	return 0;

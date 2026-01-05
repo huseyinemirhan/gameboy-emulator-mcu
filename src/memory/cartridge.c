@@ -7,6 +7,7 @@
 
 
 void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
+	memset(cart,0,sizeof(cart));
 
 	switch (rom_header[CARTRIDGE_TYPE_ADDR])
 	{
@@ -24,6 +25,8 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
         default:
             cart->mbc_type = NO_MBC;  
     }
+	cart->rom_bank0 = rom_header;
+	cart->cur_rom_bank = rom_header + FIXED_ROM_END+1;
 
 	cart->rom_size = 32768 << rom_header[ROM_SIZE_ADDR] ;
 	cart->rom_bank_count = cart->rom_size / 16384; 
@@ -40,8 +43,8 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
 	}
 
 	if(cart->ext_ram_size > 0){
-		cart->ext_ram = (uint8_t *)malloc(cart->ext_ram_size);
-		memset(cart->ext_ram, 0x00 , cart->ext_ram_size);
+		//cart->ext_ram = (uint8_t *)malloc(cart->ext_ram_size); NO SPACE read from sd
+		//memset(cart->ext_ram, 0x00 , cart->ext_ram_size);
 	}
 	else{
 		cart->ext_ram = NULL;
@@ -52,8 +55,30 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
 	cart-> ram_bank = 0;
 	cart-> ram_enabled = 0;
 	cart-> banking_mode = 0;
-
+	#ifdef DEBUG
+    printf("=== Cartridge Info ===\n");
+    printf("Title: ");
+    for (int i = TITLE_START_ADDR; i <= TITLE_END_ADDR && rom_data[i]; i++) {
+        printf("%c", rom_data[i]);
+    }
+    printf("\n");
+    
+    printf("Type: ");
+    switch(cart->mbc_type) {
+        case NO_MBC: printf("ROM Only\n"); break;
+        case MBC1:   printf("MBC1\n"); break;
+        case MBC2:   printf("MBC2\n"); break;
+        case MBC3:   printf("MBC3\n"); break;
+        case MBC5:   printf("MBC5\n"); break;
+    }
+    
+    printf("ROM Size: %d KB (%d banks)\n", cart->rom_size / 1024, cart->rom_bank_count);
+    printf("RAM Size: %d KB\n", cart->ext_ram_size / 1024);
+    printf("CGB Flag: 0x%02X\n", rom_data[CGB_FLAG_ADDR]);
+    printf("======================\n");
+    #endif
 }
+	
 
 void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
 
@@ -63,14 +88,16 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
 		break;
 
 	case MBC1:
-		if(addr <= MBC1_RAM_ENABLE_START){
+		if(addr >= MBC1_RAM_ENABLE_START && addr <= MBC1_RAM_ENABLE_END){
 
             cart->ram_enabled = (0b00001111 & val) == 0x0A ? 1:0;
         }
-        else if( addr <= MBC1_ROM_BANK_NUM_START && addr <= MBC1_ROM_BANK_NUM_END){
+
+        else if( addr <= MBC1_ROM_BANK_NUM_START && addr <= MBC1_ROM_BANK_NUM_END){ // Which rom bank to use
 
             uint8_t bank = val & 0b00011111;
-            cart->rom_bank = (cart->rom_bank & 0b01100000) | bank; // I dont understand here learn it
+
+            cart->rom_bank = (cart->rom_bank & 0b01100000) | bank; 
         
             if ((cart->rom_bank & 0x1F) == 0) {
             cart->rom_bank |= 0x01;
@@ -80,14 +107,15 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
             Switch_rom_bank(cart, cart->rom_bank);
 
         }
-		else if( addr >= MBC1_RAM_BANK_NUM_START && addr <= MBC1_RAM_BANK_NUM_END){
+
+		else if( addr >= MBC1_RAM_BANK_NUM_START && addr <= MBC1_RAM_BANK_NUM_END){ // which ram bank to use
 
 			if(cart->banking_mode == 0){
 				//ROM Banking Mode
 
 				uint8_t upper_bits = val & 0b00000011;
 
-				cart->rom_bank = (cart->rom_bank & 0b00011111) | (upper_bits << 5); // WTF IS THIS 
+				cart->rom_bank = (cart->rom_bank & 0b00011111) | (upper_bits << 5); 
 				
 				cart->rom_bank %= cart->rom_bank_count;
 				Switch_rom_bank(cart, cart->rom_bank);

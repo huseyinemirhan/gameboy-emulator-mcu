@@ -14,22 +14,38 @@
 static int op_##name(){			\
 	dest = src;					\
 	return 4;					\
-}								\
+}								
+
+#define LD_R_N(name, dest) \
+static int op_##name(){ \
+    dest = Memory_Read_Byte(cpu.PC++); \
+    return 8; \
+}
+
 
 
 #define LD_R_R16(name, dest, src1, src2)\
 static int op_##name(){					\
-	uint16_t addr = (src1 << 8) | src2 ;	\
+	uint16_t addr = (src1 << 8) | src2 ;\
 	dest = Memory_Read_Byte(addr);		\
 	return 8;							\
-}
+}										
 
 #define LD_R16_R(name, src, dest1, dest2) \
 static int op_##name(){					  \
 	uint16_t addr = (dest1 << 8) | dest2 ;\
 	Memory_Write_Byte(addr, src);	  \
 	return 8;							  \
-}
+}											\
+
+//LD r,n
+LD_R_N(06, cpu.B)
+LD_R_N(0E, cpu.C)
+LD_R_N(16, cpu.D)
+LD_R_N(1E, cpu.E)
+LD_R_N(26, cpu.H)
+LD_R_N(2E, cpu.L)
+LD_R_N(3E, cpu.A)
 
 
 // LD B, r
@@ -39,7 +55,7 @@ LD_R_R(42, cpu.B, cpu.D)
 LD_R_R(43, cpu.B, cpu.E)
 LD_R_R(44, cpu.B, cpu.H)
 LD_R_R(45, cpu.B, cpu.L)
-LD_R_R16(46, cpu.B, cpu.H, cpu.L);
+LD_R_R16(46, cpu.B, cpu.H, cpu.L)
 LD_R_R(47, cpu.B, cpu.A)
 
 // LD C, r
@@ -49,7 +65,7 @@ LD_R_R(4A, cpu.C, cpu.D)
 LD_R_R(4B, cpu.C, cpu.E)
 LD_R_R(4C, cpu.C, cpu.H)
 LD_R_R(4D, cpu.C, cpu.L)
-LD_R_R16(4E, cpu.C, cpu.H, cpu.L);
+LD_R_R16(4E, cpu.C, cpu.H, cpu.L)
 LD_R_R(4F, cpu.C, cpu.A)
 
 // LD D, r
@@ -59,7 +75,7 @@ LD_R_R(52, cpu.D, cpu.D)
 LD_R_R(53, cpu.D, cpu.E)
 LD_R_R(54, cpu.D, cpu.H)
 LD_R_R(55, cpu.D, cpu.L)
-LD_R_R16(56, cpu.D, cpu.H, cpu.L);
+LD_R_R16(56, cpu.D, cpu.H, cpu.L)
 LD_R_R(57, cpu.D, cpu.A)
 
 // LD E, r
@@ -69,7 +85,7 @@ LD_R_R(5A, cpu.E, cpu.D)
 LD_R_R(5B, cpu.E, cpu.E)
 LD_R_R(5C, cpu.E, cpu.H)
 LD_R_R(5D, cpu.E, cpu.L)
-LD_R_R16(5E, cpu.E, cpu.H, cpu.L);
+LD_R_R16(5E, cpu.E, cpu.H, cpu.L)
 LD_R_R(5F, cpu.E, cpu.A)
 
 // LD H, r
@@ -79,7 +95,7 @@ LD_R_R(62, cpu.H, cpu.D)
 LD_R_R(63, cpu.H, cpu.E)
 LD_R_R(64, cpu.H, cpu.H)
 LD_R_R(65, cpu.H, cpu.L)
-LD_R_R16(66, cpu.H, cpu.H, cpu.L);
+LD_R_R16(66, cpu.H, cpu.H, cpu.L)
 LD_R_R(67, cpu.H, cpu.A)
 
 // LD L, r
@@ -89,17 +105,25 @@ LD_R_R(6A, cpu.L, cpu.D)
 LD_R_R(6B, cpu.L, cpu.E)
 LD_R_R(6C, cpu.L, cpu.H)
 LD_R_R(6D, cpu.L, cpu.L)
-LD_R_R16(6E, cpu.L, cpu.H, cpu.L);
+LD_R_R16(6E, cpu.L, cpu.H, cpu.L)
 LD_R_R(6F, cpu.L, cpu.A)
 
 // LD HL, r
-LD_R16_R(70,cpu.B, cpu.H, cpu.L);
-LD_R16_R(71,cpu.C, cpu.H, cpu.L);
-LD_R16_R(72,cpu.D, cpu.H, cpu.L);
-LD_R16_R(73,cpu.E, cpu.H, cpu.L);
-LD_R16_R(74,cpu.H, cpu.H, cpu.L);
-LD_R16_R(75,cpu.L, cpu.H, cpu.L);
-LD_R16_R(77,cpu.A, cpu.H, cpu.L);
+LD_R16_R(70,cpu.B, cpu.H, cpu.L)
+LD_R16_R(71,cpu.C, cpu.H, cpu.L)
+LD_R16_R(72,cpu.D, cpu.H, cpu.L)
+LD_R16_R(73,cpu.E, cpu.H, cpu.L)
+LD_R16_R(74,cpu.H, cpu.H, cpu.L)
+LD_R16_R(75,cpu.L, cpu.H, cpu.L)
+LD_R16_R(77,cpu.A, cpu.H, cpu.L)
+
+// LD R16, A
+LD_R16_R(02, cpu.A, cpu.B, cpu.C)
+LD_R16_R(12, cpu.A, cpu.D, cpu.E)
+
+//LD A, R16
+LD_R_R16(0A, cpu.A, cpu.B, cpu.C)
+LD_R_R16(1A, cpu.A, cpu.D, cpu.E)
 
 // LD A, r
 LD_R_R(78, cpu.A, cpu.B)
@@ -108,7 +132,7 @@ LD_R_R(7A, cpu.A, cpu.D)
 LD_R_R(7B, cpu.A, cpu.E)
 LD_R_R(7C, cpu.A, cpu.H)
 LD_R_R(7D, cpu.A, cpu.L)
-LD_R_R16(7E, cpu.A, cpu.H, cpu.L);
+LD_R_R16(7E, cpu.A, cpu.H, cpu.L)
 LD_R_R(7F, cpu.A, cpu.A)
 
 
@@ -123,37 +147,61 @@ static int op_00(){
 	return 4;
 }
 
-static int op_06(){
-	cpu.B = Memory_Read_Byte(cpu.PC++);
+//+-HL
+static int op_22(){
+	uint16_t addr = (cpu.H << 8) | cpu.L;
+	Memory_Write_Byte(addr, cpu.A);
+	addr++;
+	cpu.H = (addr >> 8);
+	cpu.L =	addr & 0b0000000011111111;
+
 	return 8;
 }
 
-static int op_16(){
-	cpu.D = Memory_Read_Byte(cpu.PC++);
+static int op_32(){
+	uint16_t addr = (cpu.H << 8) | cpu.L;
+	Memory_Write_Byte(addr--, cpu.A);
+	cpu.H = (addr >> 8);
+	cpu.L =	addr & 0b0000000011111111;
+
 	return 8;
 }
 
-static int op_26(){
-	cpu.H = Memory_Read_Byte(cpu.PC++);
-	return 8;
-}
-static int op_0E(){
-	cpu.C = Memory_Read_Byte(cpu.PC++);
-	return 8;
-}
-static int op_1E(){
-	cpu.E = Memory_Read_Byte(cpu.PC++);
+static int op_2A(){
+	uint16_t addr = (cpu.H << 8) | cpu.L;
+	cpu.A = Memory_Read_Byte(addr++);
+	cpu.H = (addr >> 8);
+	cpu.L =	addr & 0b0000000011111111;
 	return 8;
 }
 
-static int op_2E(){
-	cpu.L = Memory_Read_Byte(cpu.PC++);
+static int op_3A(){
+	uint16_t addr = (cpu.H << 8) | cpu.L;
+	cpu.A = Memory_Read_Byte(addr--);
+	cpu.H = (addr >> 8);
+	cpu.L =	addr & 0b0000000011111111;
 	return 8;
 }
+// LD (a16), A and LD A, (a16)
+static int op_FA(){
+	uint8_t lower = Memory_Read_Byte(cpu.PC++);
+	uint8_t higher = Memory_Read_Byte(cpu.PC++);
+	cpu.A = Memory_Read_Byte((higher << 8) | lower);
+	return 16;
+}
 
-static int op_3E(){
-	cpu.A = Memory_Read_Byte(cpu.PC++);
-	return 8;
+static int op_EA(){
+	uint8_t lower = Memory_Read_Byte(cpu.PC++);
+	uint8_t higher = Memory_Read_Byte(cpu.PC++);
+	Memory_Write_Byte(Memory_Read_Byte((higher << 8) | lower), cpu.A);
+	return 16;
+}
+
+// LD HL n
+static int op_36(){
+	uint16_t addr = (cpu.H << 8) | cpu.L;
+	Memory_Write_Byte(addr, Memory_Read_Byte(cpu.PC++));
+	return 12;
 }
 
 static int op_undefined(){
@@ -168,42 +216,58 @@ const opcode_func opcode_func_table[256] = {
 
     [0x00] = op_00,
 
-    // LD r, n
-    [0x06] = op_06, [0x0E] = op_0E, [0x16] = op_16, [0x1E] = op_1E,
-    [0x26] = op_26, [0x2E] = op_2E, [0x3E] = op_3E,
+    // --- LD r, n (8-bit immediate) ---
+    [0x06] = op_06, [0x0E] = op_0E, 
+    [0x16] = op_16, [0x1E] = op_1E, 
+    [0x26] = op_26, [0x2E] = op_2E, 
+    [0x3E] = op_3E,
 
-    // LD B, r
+    // --- Special HL Loads ---
+    [0x22] = op_22, // LD (HL+), A
+    [0x32] = op_32, // LD (HL-), A
+    [0x2A] = op_2A, // LD A, (HL+)
+    [0x3A] = op_3A, // LD A, (HL-)
+    [0x36] = op_36, // LD (HL), n
+
+    // --- Absolute Address Loads ---
+    [0xEA] = op_EA, // LD (a16), A
+    [0xFA] = op_FA, // LD A, (a16)
+
+    // --- LD (BC/DE), A and LD A, (BC/DE) ---
+    [0x02] = op_02, [0x12] = op_12,
+    [0x0A] = op_0A, [0x1A] = op_1A,
+
+    // --- LD B, r ---
     [0x40] = op_40, [0x41] = op_41, [0x42] = op_42, [0x43] = op_43,
     [0x44] = op_44, [0x45] = op_45, [0x46] = op_46, [0x47] = op_47,
 
-    // LD C, r
+    // --- LD C, r ---
     [0x48] = op_48, [0x49] = op_49, [0x4A] = op_4A, [0x4B] = op_4B,
-    [0x4C] = op_4C, [0x4D] = op_4D, [0x4E] = op_4E,  [0x4F] = op_4F,
+    [0x4C] = op_4C, [0x4D] = op_4D, [0x4E] = op_4E, [0x4F] = op_4F,
 
-    // LD D, r
+    // --- LD D, r ---
     [0x50] = op_50, [0x51] = op_51, [0x52] = op_52, [0x53] = op_53,
     [0x54] = op_54, [0x55] = op_55, [0x56] = op_56, [0x57] = op_57,
 
-    // LD E, r
+    // --- LD E, r ---
     [0x58] = op_58, [0x59] = op_59, [0x5A] = op_5A, [0x5B] = op_5B,
     [0x5C] = op_5C, [0x5D] = op_5D, [0x5E] = op_5E, [0x5F] = op_5F,
 
-    // LD H, r
+    // --- LD H, r ---
     [0x60] = op_60, [0x61] = op_61, [0x62] = op_62, [0x63] = op_63,
-    [0x64] = op_64, [0x65] = op_65, [0x66] = op_66,  [0x67] = op_67,
+    [0x64] = op_64, [0x65] = op_65, [0x66] = op_66, [0x67] = op_67,
 
-    // LD L, r
+    // --- LD L, r ---
     [0x68] = op_68, [0x69] = op_69, [0x6A] = op_6A, [0x6B] = op_6B,
-    [0x6C] = op_6C, [0x6D] = op_6D, [0x6E] = op_6E,  [0x6F] = op_6F,
+    [0x6C] = op_6C, [0x6D] = op_6D, [0x6E] = op_6E, [0x6F] = op_6F,
 
-	// LD (HL), r
-	[0x70] = op_70, [0x71] = op_71, [0x72] = op_72, [0x73] = op_73,
-	[0x74] = op_74, [0x75] = op_75, [0x77] = op_77,
+    // --- LD (HL), r ---
+    [0x70] = op_70, [0x71] = op_71, [0x72] = op_72, [0x73] = op_73,
+    [0x74] = op_74, [0x75] = op_75, [0x77] = op_77,
 
-    // LD A, r
+    // --- LD A, r ---
     [0x78] = op_78, [0x79] = op_79, [0x7A] = op_7A, [0x7B] = op_7B,
-    [0x7C] = op_7C, [0x7D] = op_7D, [0x7F] = op_7F, [0x7E] = op_7E
-
+    [0x7C] = op_7C, [0x7D] = op_7D, [0x7E] = op_7E, [0x7F] = op_7F
 };
 
 void CPU_Init(){
