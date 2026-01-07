@@ -22,8 +22,6 @@ static int op_##name(){ \
     return 8; \
 }
 
-
-
 #define LD_R_R16(name, dest, src1, src2)\
 static int op_##name(){					\
 	uint16_t addr = (src1 << 8) | src2 ;\
@@ -36,7 +34,75 @@ static int op_##name(){					  \
 	uint16_t addr = (dest1 << 8) | dest2 ;\
 	Memory_Write_Byte(addr, src);	  \
 	return 8;							  \
-}											\
+}											
+
+#define LD_R16_NN(name, dest1, dest2)\
+static int op_##name(){\
+	dest2 = Memory_Read_Byte(cpu.PC++);\
+	dest1 = Memory_Read_Byte(cpu.PC++);\
+	return 12;\
+}
+
+#define INC_R(name, reg)\
+static int op_##name(){\
+	uint8_t result = reg + 1;\
+	CPU_Clear_Flag(N_FLAG);		\
+	(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG); \
+	((cpu.A & 0x0F) < (reg & 0x0F)) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG); \
+	reg = result; \
+	return 4;\
+}
+
+#define DEC_R(name, reg)\ 
+static int op_##name(){\
+	uint8_t result = reg - 1;\
+	CPU_Set_Flag(N_FLAG);		\
+	(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG); \
+	((reg & 0xFF) == 0) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG); \
+	reg = result; \
+	return 4;\
+}
+
+#define INC_R16(name, reg1, reg2)\
+static int op_##name(){\
+	uint16_t r16 = (reg1 << 8) | reg2;\
+	r16++;			\
+	reg1 = (r16 >> 8);\
+	reg2 = (r16 & 0b0000000011111111);\
+	return 8;\
+}
+
+#define DEC_R16(name, reg)\
+static int op_##name(){\
+	uint16_t r16 = (reg1 << 8) | reg2;\
+	r16--;			\
+	reg1 = (r16 >> 8);\
+	reg2 = (r16 & 0b0000000011111111);\
+	return 8;\
+}
+
+#define ADD_R(name, reg)\
+static int op_##name(){\
+	uint8_t res = cpu.A + reg; \
+	CPU_Clear_Flag(N_FLAG);	\
+	(res == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);\
+	((cpu.A & 0x0F) + (reg & 0x0F) > 0x0F) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG);\
+	(res < cpu.A)	? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);\
+	cpu.A = res;	\
+	return 4; \
+}
+
+#define SUB_R(name, reg)\
+static int op_##name(){\
+	uint8_t res = cpu.A - reg; \
+	CPU_Set_Flag(N_FLAG);	\
+	(res == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);\
+	((cpu.A & 0x0F) < (reg & 0x0F)) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG);\
+	(reg > cpu.A)	? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);\
+	cpu.A = res;	\
+	return 4; \
+}
+
 
 //LD r,n
 LD_R_N(06, cpu.B)
@@ -135,6 +201,10 @@ LD_R_R(7D, cpu.A, cpu.L)
 LD_R_R16(7E, cpu.A, cpu.H, cpu.L)
 LD_R_R(7F, cpu.A, cpu.A)
 
+//LD R16, nn
+LD_R16_NN(01, cpu.B, cpu.C)
+LD_R16_NN(11, cpu.D, cpu.E)
+LD_R16_NN(21, cpu.H, cpu.L)
 
 CPU cpu = {0};
 
@@ -193,7 +263,7 @@ static int op_FA(){
 static int op_EA(){
 	uint8_t lower = Memory_Read_Byte(cpu.PC++);
 	uint8_t higher = Memory_Read_Byte(cpu.PC++);
-	Memory_Write_Byte(Memory_Read_Byte((higher << 8) | lower), cpu.A);
+	Memory_Write_Byte(higher << 8 | lower, cpu.A);
 	return 16;
 }
 
@@ -203,6 +273,29 @@ static int op_36(){
 	Memory_Write_Byte(addr, Memory_Read_Byte(cpu.PC++));
 	return 12;
 }
+
+//LD SP ??
+static int op_31(){
+	uint8_t lower = Memory_Read_Byte(cpu.PC++);
+	uint8_t higher = Memory_Read_Byte(cpu.PC++);
+	cpu.SP = (higher << 8) | lower;
+	return 12;
+}
+
+static int op_08(){
+	uint8_t lower = Memory_Read_Byte(cpu.PC++);
+	uint8_t higher = Memory_Read_Byte(cpu.PC++);
+	uint16_t addr = ((higher << 8) | lower)
+	Memory_Write_Byte(addr, cpu.SP & 0xFF);
+	Memory_Write_Byte(addr, cpu.SP >> 8);
+	return 20;
+}
+
+static int op_F9(){
+	cpu.SP = (cpu.H << 8) | cpu.L;
+	return 8;
+}
+
 
 static int op_undefined(){
 
