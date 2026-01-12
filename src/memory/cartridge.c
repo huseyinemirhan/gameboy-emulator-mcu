@@ -26,7 +26,7 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
             cart->mbc_type = NO_MBC;  
     }
 	cart->rom_bank0 = rom_header;
-	cart->cur_rom_bank = rom_header + FIXED_ROM_END+1;
+	cart->cur_rom_bank = rom_header + ROM_BANK_START;
 
 	cart->rom_size = 32768 << rom_header[ROM_SIZE_ADDR] ;
 	cart->rom_bank_count = cart->rom_size / 16384; 
@@ -49,8 +49,8 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
 	else{
 		cart->ext_ram = NULL;
 	}
-	cart -> rom_bank0 = rom_header;
-	cart -> cur_rom_bank = &rom_header[16384]; //point to bank 1 initially
+	cart -> rom_bank0 = rom_header; 
+	cart -> cur_rom_bank = &rom_header[ROM_BANK_START]; //point to bank 1 initially
 	cart-> rom_bank = 1;
 	cart-> ram_bank = 0;
 	cart-> ram_enabled = 0;
