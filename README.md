@@ -2,7 +2,7 @@
 
 A hardware-based Nintendo Game Boy (DMG-01) emulator targeting resource-constrained microcontrollers, starting with the STM32F103 (Blue Pill) and evolving to the Raspberry Pi Pico 2.
 
-![Game Boy DMG-01](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Game-Boy-FL.jpg/800px-Game-Boy-FL.jpg)
+![Game Boy DMG-01](https://upload.wikimedia.org/wikipedia/commons/f/f4/Game-Boy-FL.jpg)
 
 *Original Nintendo Game Boy (DMG-01)*
 
@@ -49,7 +49,7 @@ A hardware-based Nintendo Game Boy (DMG-01) emulator targeting resource-constrai
 
 **Status:** Planned
 
-![Raspberry Pi Pico 2](https://assets.raspberrypi.com/static/pico-2-hero-1446x1080-47f58769caa41e90e19856c86be72a0b.png)
+![Raspberry Pi Pico 2](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 
 *Raspberry Pi Pico 2 Board*
 
