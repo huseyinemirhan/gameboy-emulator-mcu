@@ -366,7 +366,6 @@ PUSH_R_R(F5, cpu.A, cpu.F)
 POP_R_R(C1, cpu.B, cpu.C)
 POP_R_R(D1, cpu.D, cpu.E)
 POP_R_R(E1, cpu.H, cpu.L)
-POP_R_R(F1, cpu.A, cpu.F)
 
 // ---RST n ---
 RST_N(C7, 0x0000) RST_N(CF, 0x0008) RST_N(D7, 0x0010) RST_N(DF, 0x0018)
@@ -385,7 +384,7 @@ static int op_00(){
 
 //+-HL
 static int op_22(){
-	uint16_t addr = (cpu.H << 8) | cpu.L;
+	uint16_t addr = Combine_Registers(cpu.H, cpu.L);
 	Memory_Write_Byte(addr, cpu.A);
 	addr++;
 	cpu.H = (addr >> 8);
@@ -395,8 +394,9 @@ static int op_22(){
 }
 
 static int op_32(){
-	uint16_t addr = (cpu.H << 8) | cpu.L;
-	Memory_Write_Byte(addr--, cpu.A);
+	uint16_t addr = Combine_Registers(cpu.H, cpu.L);
+	Memory_Write_Byte(addr, cpu.A);
+	addr--;
 	cpu.H = (addr >> 8);
 	cpu.L =	addr & 0b0000000011111111;
 
@@ -480,7 +480,7 @@ static int op_F8() {
     return 12; 
 }
 
-//LDH -> Acces to HRAM
+//LDH
 
 static int op_F2() {
 	cpu.A = Memory_Read_Byte(cpu.C + 0xFF00);
@@ -1063,7 +1063,7 @@ static int op_D9(){
 	uint8_t lower = Memory_Read_Byte(cpu.SP++);
 	uint8_t higher = Memory_Read_Byte(cpu.SP++);
 	cpu.PC = Combine_Registers(higher, lower);
-	memory.ie = 1;
+	cpu.IME = 1;
 	return 16;
 }
 
@@ -1077,13 +1077,13 @@ static int op_76(){
 //EI
 
 static int op_FB(){
-	memory.ie = 1;
+	cpu.IME = 1;
 	return 4;
 }
 
 //DI
 static int op_F3(){
-	memory.ie = 0;
+	cpu.IME = 0;
 	return 4;
 }
 
@@ -1158,37 +1158,191 @@ static int CB_Execute(){
 	uint8_t reg_id = (opcode & 0b00000111);
 
 	uint8_t *reg;
+
 	if(reg_id == 6){
 		return handle_cb_hl(opcode, type, id);
 	}
 
 	switch (reg_id)
 	{
-	    case 0: reg = &cpu.B;
-        case 1: reg = &cpu.C;
-        case 2: reg = &cpu.D;
-        case 3: reg = &cpu.E;
-        case 4: reg = &cpu.H;
-        case 5: reg = &cpu.L;
-        case 7: reg = &cpu.A;
-        default: reg = NULL;
+	    case 0: reg = &cpu.B; break; 
+        case 1: reg = &cpu.C; break; 
+        case 2: reg = &cpu.D; break; 
+        case 3: reg = &cpu.E; break; 
+        case 4: reg = &cpu.H; break; 
+        case 5: reg = &cpu.L; break;  
+        case 7: reg = &cpu.A; break; 
+        default: reg = NULL; break; 
 	}
  	
 	switch(type){
         case 0:  // Rotates/Shifts (0x00-0x3F)
-            return handle_rotate_shift(opcode, reg);
+            return handle_rotate_shift(id, reg);
         
         case 1:  // BIT (0x40-0x7F)
-            return handle_bit(bit_num, reg);
+            return handle_bit(id, reg);
         
         case 2:  // RES (0x80-0xBF)
-            return handle_res(bit_num, reg);
+            return handle_res(id, reg);
         
         case 3:  // SET (0xC0-0xFF)
-            return handle_set(bit_num, reg);
+            return handle_set(id, reg);
     }
     return 0;
+
 	}
+
+static int handle_rotate_shift(uint8_t bit_num, uint8_t *reg){
+	uint8_t val  = *reg;
+	uint8_t result = 0;
+	uint8_t c = 0;
+	uint8_t b0 = 0;
+	uint8_t b7 = 0;
+
+	switch (bit_num)
+	{
+	case 0: //RLC
+		c = (val >> 7) & 0x01;
+		result = (val << 1) | c;
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(c == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		break;
+	case 1: //RRC
+		c = (val & 0b00000001);
+		result = (val >> 1) | (c << 7);
+		
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(c == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		break;
+		
+	case 2: //RL
+		c = CPU_Get_Flag(C_FLAG);
+		b7 = (val >> 7) & 0x01;
+
+		result = (val << 1) | c;
+
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(b7 == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		break;
+		
+	case 3: //RR
+		c = CPU_Get_Flag(C_FLAG);
+		b0 = (val & 0x1);
+		result = (val >> 1) | (c << 7);
+		
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(b0 == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		break;
+
+	case 4: //SLA
+		b7 = (val >> 7) & 0x01;
+		result = val << 1;
+
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(b7 == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		break;
+
+	case 5: //SRA
+		b0 = (val & 0x01);
+		b7 = val & 0b10000000; 
+		result = (val >> 1) | b7; 
+
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(b0 == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		break;
+
+	case 6: //SWAP
+		uint8_t upper_nibble = (val >> 4) & 0b00001111;
+		uint8_t lower_nibble = val & 0b00001111;
+
+		result = ((lower_nibble << 4) | (upper_nibble & 0b00001111));
+
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		CPU_Clear_Flag(C_FLAG);
+		
+		break;
+
+	case 7: //SRL
+		b0 = (val & 0b00000001);
+		result = val >> 1;
+
+		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+		CPU_Clear_Flag(N_FLAG);
+		CPU_Clear_Flag(H_FLAG);
+		(b0 == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+		
+		break;
+
+	default:
+		return 0;
+	}
+	*reg = result;
+	return 8;
+}
+
+static int handle_bit(uint8_t bit_num, uint8_t *reg){
+
+	uint8_t val = *reg;
+	uint8_t bit = ( val >> bit_num) & 0x01;
+
+	(bit == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
+	CPU_Clear_Flag(N_FLAG);
+	CPU_Set_Flag(H_FLAG);
+
+	return 8;
+
+}
+
+static int handle_res(uint8_t bit_num, uint8_t *reg){
+	*reg &= ~(1 << bit_num);
+
+	return 8;
+}
+
+static int handle_set(uint8_t bit_num, uint8_t *reg){
+	*reg |= (1 << bit_num);
+	
+	return 8;
+}
+
+static int handle_cb_hl(uint8_t opcode, uint8_t type, uint8_t id){
+	uint16_t addr = Combine_Registers(cpu.H, cpu.L);
+	uint8_t val = Memory_Read_Byte(addr);
+
+	switch(type){
+		case 0:
+			handle_rotate_shift(id, &val);
+			Memory_Write_Byte(addr, val);
+			return 16;
+		case 1:
+			handle_bit(id, &val);
+			return 12;
+		case 2:
+			handle_res(id, &val);
+			Memory_Write_Byte(addr, val);
+			return 16;
+		case 3:
+			handle_set(id, &val);
+			Memory_Write_Byte(addr, val);
+			return 16;
+			
+	}
+	return 0;
+}
 
 static int op_undefined(){
 
