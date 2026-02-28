@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include "../cpu/cpu.h"
 
+extern void check_serial_output(uint16_t addr, uint8_t value);
+
 MEMORY memory = {0};
 
 void Memory_Init(){
@@ -21,11 +23,13 @@ void Memory_Init(){
 
 uint8_t Memory_Read_Byte(uint16_t addr){
 
+	
+
 	if (addr >= ERAM_START && addr <= ERAM_END)  addr -= 0x2000; // Echo RAM
 	       
 	if(addr >= FIXED_ROM_START && addr <= FIXED_ROM_END){ // Bank 0
 
-		return memory.cartridge.rom_bank0[addr - FIXED_ROM_START]; //If using SD card add reading here
+		return memory.cartridge.rom_bank0[addr - FIXED_ROM_START];
 	}
 
 	else if(addr >= ROM_BANK_START && addr <= ROM_BANK_END){
@@ -66,6 +70,7 @@ uint8_t Memory_Read_Byte(uint16_t addr){
 	else if(addr >= IO_REG_START && addr <= IO_REG_END){
 
 		return memory.io_reg[addr-IO_REG_START];
+
 	}
 	else if(addr >= HRAM_START && addr <= HRAM_END){
 
@@ -114,7 +119,15 @@ void Memory_Write_Byte(uint16_t addr, uint8_t val){
 	}
 	else if(addr >= IO_REG_START && addr <= IO_REG_END){
 
+		if(addr == 0xFF04){
+			memory.io_reg[0x04] = 0;
+			cpu.div_counter = 0;
+			return;
+		}
+
 		memory.io_reg[addr-IO_REG_START] = val;
+		check_serial_output(addr,val); //DEBUG
+
 	}
 	else if(addr >= HRAM_START && addr <= HRAM_END){
 

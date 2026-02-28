@@ -1,13 +1,12 @@
 #include "cartridge.h"
 #include "memory.h"
-#include "sd_card.h"
 #include <string.h>
 #include <stdlib.h>
 #include<stdint.h>
 
 
 void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
-	memset(cart,0,sizeof(cart));
+	memset(cart,0,sizeof(Cartridge));
 
 	switch (rom_header[CARTRIDGE_TYPE_ADDR])
 	{
@@ -93,7 +92,7 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
             cart->ram_enabled = (0b00001111 & val) == 0x0A ? 1:0;
         }
 
-        else if( addr <= MBC1_ROM_BANK_NUM_START && addr <= MBC1_ROM_BANK_NUM_END){ // Which rom bank to use
+        else if( addr >= MBC1_ROM_BANK_NUM_START && addr <= MBC1_ROM_BANK_NUM_END){ // Which rom bank to use
 
             uint8_t bank = val & 0b00011111;
 

@@ -119,7 +119,7 @@ static int op_##name(){\
 #define SBC_R(name, reg)\
 static int op_##name(){\
 	uint8_t Cy = CPU_Get_Flag(C_FLAG);\
-	int res = cpu.A - reg - Cy; \
+	uint8_t res = cpu.A - reg - Cy; \
 	CPU_Set_Flag(N_FLAG);	\
 	(res == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);\
 	((cpu.A & 0x0F) < (reg & 0x0F) + Cy) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG);\
@@ -208,6 +208,15 @@ static int op_##name(){\
 	reg2 = lower;\
 	return 12;\
 }
+
+static uint16_t Combine_Registers(uint8_t reg1,uint8_t reg2);
+static uint16_t Read_nn_From_Rom();
+
+static int handle_bit(uint8_t bit_num, uint8_t *reg);
+static int handle_set(uint8_t bit_num, uint8_t *reg);
+static int handle_res(uint8_t bit_num, uint8_t *reg);
+static int handle_rotate_shift(uint8_t bit_num, uint8_t *reg);
+static int handle_cb_hl(uint8_t opcode, uint8_t type, uint8_t id);
 
 //LD r,n
 LD_R_N(06, cpu.B)
@@ -569,7 +578,7 @@ static int op_8E(){
 static int op_9E(){
 	uint8_t Cy = CPU_Get_Flag(C_FLAG);
 	uint8_t val = Memory_Read_Byte(Combine_Registers(cpu.H, cpu.L));
-	int res = cpu.A - val - Cy; 
+	uint8_t res = cpu.A - val - Cy; 
 	CPU_Set_Flag(N_FLAG);
 	(res == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
 	((cpu.A & 0x0F) < (val & 0x0F) + Cy) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG);
@@ -595,11 +604,11 @@ static int op_CE(){
 static int op_DE(){
 	uint8_t Cy = CPU_Get_Flag(C_FLAG);
 	uint8_t val = Memory_Read_Byte(cpu.PC++);
-	int res = cpu.A - val - Cy; 
+	uint8_t res = cpu.A - val - Cy; 
 	CPU_Set_Flag(N_FLAG);
 	(res == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
 	((cpu.A & 0x0F) < (val & 0x0F) + Cy) ? CPU_Set_Flag(H_FLAG) : CPU_Clear_Flag(H_FLAG);
-	((uint16_t)val + (uint16_t)Cy > (uint16_t)cpu.A)	? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
+	((uint16_t)val + (uint16_t)Cy > (uint16_t)cpu.A) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
     cpu.A = res; 
     return 8; 
 }
@@ -746,24 +755,27 @@ static int op_37(){
 
 //DAA
 static int op_27(){
+
+	uint8_t res = cpu.A;	
+
 	if(!CPU_Get_Flag(N_FLAG)){
 		if(CPU_Get_Flag(H_FLAG) || ( (cpu.A & 0b00001111) > 0x09)){
-			cpu.A += 0x06;
+			res += 0x06;
 		}
 		if(CPU_Get_Flag(C_FLAG) || (cpu.A > 0x99)){
-			cpu.A += 0x60;
+			res += 0x60;
 			CPU_Set_Flag(C_FLAG);
 		}
 	}
 	else{
 		if(CPU_Get_Flag(H_FLAG)){
-			cpu.A -= 0x06;
+			res -= 0x06;
 		}
 		if(CPU_Get_Flag(C_FLAG)){
-			cpu.A -= 0x60;
+			res -= 0x60;
 		}
 	}
-	cpu.A = cpu.A & 0xFF;
+	cpu.A = res & 0xFF;
 	(cpu.A == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
 	CPU_Clear_Flag(H_FLAG);
 	return 4;
@@ -1077,13 +1089,14 @@ static int op_76(){
 //EI
 
 static int op_FB(){
-	cpu.IME = 1;
+	cpu.ei_pending = 1;
 	return 4;
 }
 
 //DI
 static int op_F3(){
 	cpu.IME = 0;
+	cpu.ei_pending = 0;
 	return 4;
 }
 
@@ -1091,6 +1104,7 @@ static int op_F3(){
 static int op_10(){
 	cpu.PC++;
 	cpu.halted = 1;
+	Memory_Write_Byte(0xFF04,0);
 	return 4;
 }
 
@@ -1264,6 +1278,7 @@ static int handle_rotate_shift(uint8_t bit_num, uint8_t *reg){
 		break;
 
 	case 6: //SWAP
+	{
 		uint8_t upper_nibble = (val >> 4) & 0b00001111;
 		uint8_t lower_nibble = val & 0b00001111;
 
@@ -1275,6 +1290,7 @@ static int handle_rotate_shift(uint8_t bit_num, uint8_t *reg){
 		CPU_Clear_Flag(C_FLAG);
 		
 		break;
+	}
 
 	case 7: //SRL
 		b0 = (val & 0b00000001);
@@ -1414,7 +1430,7 @@ const opcode_func opcode_func_table[256] = {
     [0x58]=op_58, [0x59]=op_59, [0x5A]=op_5A, [0x5B]=op_5B, [0x5C]=op_5C, [0x5D]=op_5D, [0x5E]=op_5E, [0x5F]=op_5F,
     [0x60]=op_60, [0x61]=op_61, [0x62]=op_62, [0x63]=op_63, [0x64]=op_64, [0x65]=op_65, [0x66]=op_66, [0x67]=op_67,
     [0x68]=op_68, [0x69]=op_69, [0x6A]=op_6A, [0x6B]=op_6B, [0x6C]=op_6C, [0x6D]=op_6D, [0x6E]=op_6E, [0x6F]=op_6F,
-    [0x70]=op_70, [0x71]=op_71, [0x72]=op_72, [0x73]=op_73, [0x74]=op_74, [0x75]=op_75, [0x76]=op_76, [0x77]=op_77,
+    [0x70]=op_70, [0x71]=op_71, [0x72]=op_72, [0x73]=op_73, [0x74]=op_74, [0x75]=op_75, [0x77]=op_77,
     [0x78]=op_78, [0x79]=op_79, [0x7A]=op_7A, [0x7B]=op_7B, [0x7C]=op_7C, [0x7D]=op_7D, [0x7E]=op_7E, [0x7F]=op_7F,
 	// --- CB PREFIX ---
 	[0xCB]=CB_Execute
@@ -1422,7 +1438,7 @@ const opcode_func opcode_func_table[256] = {
 
 void CPU_Init(){
 
-	cpu.PC = 0x00;
+	cpu.PC = 0x0100;
 	cpu.SP = 0xFFFE;
 	cpu.F = 0x00;
 
@@ -1434,12 +1450,99 @@ int CPU_Step(){
 	int cycles = opcode_func_table[op_code]();
 	cpu.cycles += cycles;
 
+	if(cpu.ei_pending && op_code != 0xFB){
+		cpu.IME = 1;
+		cpu.ei_pending = 0;
+	}
+
 	return cycles;
 
 }
 
+void CPU_Handle_Interrupts(){
 
-// Some Helpers
+	if(!cpu.IME){
+		if((memory.ie & Memory_Read_Byte(0xFF0F))){
+			cpu.halted = 0;
+		}
+		return;
+	}
+
+	uint8_t IF = Memory_Read_Byte(0xFF0F);
+	uint8_t IE = memory.ie;
+	uint8_t handling = (IE & IF);
+
+	if(!handling){
+		return;
+	}
+	else{
+		cpu.IME = 0;
+		cpu.halted = 0;
+		for(int i = 0; i < 5;i++){
+			if((handling & (1<<i))){
+				Memory_Write_Byte(0xFF0F,IF & ~(1 << i));
+				cpu.SP--;
+				Memory_Write_Byte(cpu.SP, (cpu.PC>>8) & 0xFF);
+				cpu.SP--;
+				Memory_Write_Byte(cpu.SP,(cpu.PC & 0xFF));
+				uint8_t vec_addr = (i*8) + 0x0040;
+				cpu.PC = vec_addr;
+				break;
+			}
+		}
+	}
+}
+
+void CPU_Run_Timer(uint8_t cycles_elapsed){
+	uint8_t DIV = Memory_Read_Byte(0xFF04);
+	uint8_t TMA = Memory_Read_Byte(0xFF06);
+	uint8_t TAC = Memory_Read_Byte(0xFF07);
+	uint8_t TIMA = Memory_Read_Byte(0xFF05);
+	uint8_t IF = Memory_Read_Byte(0xFF0F);
+	uint8_t CS = (TAC & 0b00000011);
+	uint8_t TIMA_enabled = (TAC & 0b00000100) >> 2;
+	int inc_cycles = 1024;
+	
+	cpu.div_counter+=cycles_elapsed;
+	if(cpu.div_counter >= 256){
+		cpu.div_counter -=256;
+		DIV++;
+	}
+
+
+	if(TIMA_enabled){
+		if(CS == 0){
+			inc_cycles = 1024;
+		}
+		else if(CS == 0b00000001){
+			inc_cycles = 16;
+		}
+		else if(CS == 0b00000011){
+			inc_cycles = 256;
+		}
+		else if(CS == 0b00000010){
+			inc_cycles = 64;
+		}
+
+		cpu.tima_counter+=cycles_elapsed;
+
+		if(cpu.tima_counter >= inc_cycles){
+			cpu.tima_counter-=inc_cycles;
+			TIMA++;
+
+			if(TIMA == 0){
+				Memory_Write_Byte(0xFF0F,(IF | 0b00000100));
+				TIMA = TMA;
+			}
+		}
+
+	}
+	memory.io_reg[0x05] = TIMA;
+	memory.io_reg[0x04] = DIV;
+}
+
+
+// Helper Functions 
 
 void CPU_Set_Flag(uint8_t flag){
 
