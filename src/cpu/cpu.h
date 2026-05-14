@@ -27,6 +27,7 @@ typedef struct{
 	uint8_t halted;
 	uint8_t IME;
 	uint8_t ei_pending;
+	
 	//Timer
 	uint16_t div_counter;
 	uint16_t tima_counter;
@@ -44,7 +45,7 @@ void CPU_Clear_Flag(uint8_t flag);
 void CPU_Flip_Flag(uint8_t flag);
 uint8_t CPU_Get_Flag(uint8_t flag);
 
-void CPU_Handle_Interrupts();
+int CPU_Handle_Interrupts();
 void CPU_Run_Timer(uint8_t cycles_elapsed);
 
 

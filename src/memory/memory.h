@@ -38,10 +38,14 @@ struct Cartridge;
 
 
 typedef struct {
+    uint8_t *boot_rom;
+    uint8_t boot_rom_en;
     uint8_t vram[VRAM_END - VRAM_START + 1];
     uint8_t wram[WRAM_END - WRAM_START + 1];
     uint8_t oam[OAM_END - OAM_START + 1];
     uint8_t io_reg[IO_REG_END - IO_REG_START + 1];
+    uint8_t d_pad_state;
+    uint8_t buttons_state;
     uint8_t hram[HRAM_END - HRAM_START + 1];
     uint8_t ie;
     Cartridge cartridge;

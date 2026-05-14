@@ -1,0 +1,26 @@
+//
+// Created by MSI Cyborg on 5.05.2026.
+//
+
+#ifndef GB_EMULATOR_CORE_INPUTS_H
+#define GB_EMULATOR_CORE_INPUTS_H
+
+#include <stdint.h>
+
+#define IO_REG              0xFF00
+
+#define A_BUTTON_MASK       0b00000001
+#define B_BUTTON_MASK       0b00000010
+#define UP_BUTTON_MASK      0b00000100
+#define DOWN_BUTTON_MASK    0b00001000
+#define RIGHT_BUTTON_MASK   0b00000001
+#define LEFT_BUTTON_MASK    0b00000010
+#define SELECT_BUTTON_MASK  0b00000100
+#define START_BUTTON_MASK   0b00001000
+
+#define SELECT_DPAD_MASK    0b00010000
+#define SELECT_BUTTONS_MASK 0b00100000
+
+uint8_t get_input();
+
+#endif //GB_EMULATOR_CORE_INPUTS_H

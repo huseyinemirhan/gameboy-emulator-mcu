@@ -33,6 +33,8 @@
 #define HEADER_CHECKSUM_ADDR   0x014D
 #define GLOBAL_CHECKSUM_ADDR   0x014E //2 bytes
 
+#define ROM_BANK_SIZE 16384
+
 
 
 typedef enum{
@@ -67,7 +69,7 @@ typedef struct{
 
 void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val);
 void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header);
-void Switch_rom_bank(Cartridge *cart, uint8_t bank_num);
+void switch_rom_bank(Cartridge *cart, uint8_t bank_num);
 
 
 #endif /* SRC_MEMORY_CARTRIDGE_H_*/

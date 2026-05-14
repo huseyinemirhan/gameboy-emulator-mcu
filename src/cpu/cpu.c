@@ -1224,7 +1224,7 @@ static int handle_rotate_shift(uint8_t bit_num, uint8_t *reg){
 		(c == 1) ? CPU_Set_Flag(C_FLAG) : CPU_Clear_Flag(C_FLAG);
 		break;
 	case 1: //RRC
-		c = (val & 0b00000001);
+		c = (val & 0x01);
 		result = (val >> 1) | (c << 7);
 		
 		(result == 0) ? CPU_Set_Flag(Z_FLAG) : CPU_Clear_Flag(Z_FLAG);
@@ -1368,7 +1368,7 @@ static int op_undefined(){
 
 
 const opcode_func opcode_func_table[256] = {
-    [0x00 ... 0xFF] = op_undefined,
+    // [0x00 ... 0xFF] = op_undefined,
     [0x00] = op_00, // NOP
 
     // --- 8-bit Arithmetic/Logic (Reg) ---
@@ -1437,11 +1437,16 @@ const opcode_func opcode_func_table[256] = {
 };
 
 void CPU_Init(){
-
-	cpu.PC = 0x0100;
+	cpu.A = 0x01;
+	cpu.B = 0x00;
+	cpu.C = 0x13;
+	cpu.D = 0x00;
+	cpu.E = 0xD8;
+	cpu.H = 0x01;
+	cpu.L = 0x4D;
+	cpu.F = 0xB0;
+	cpu.PC = 0x0;
 	cpu.SP = 0xFFFE;
-	cpu.F = 0x00;
-
 }
 
 int CPU_Step(){
@@ -1459,13 +1464,13 @@ int CPU_Step(){
 
 }
 
-void CPU_Handle_Interrupts(){
+int CPU_Handle_Interrupts(){
 
 	if(!cpu.IME){
 		if((memory.ie & Memory_Read_Byte(0xFF0F))){
 			cpu.halted = 0;
 		}
-		return;
+		return 0;
 	}
 
 	uint8_t IF = Memory_Read_Byte(0xFF0F);
@@ -1473,7 +1478,7 @@ void CPU_Handle_Interrupts(){
 	uint8_t handling = (IE & IF);
 
 	if(!handling){
-		return;
+		return 0;
 	}
 	else{
 		cpu.IME = 0;
@@ -1490,6 +1495,7 @@ void CPU_Handle_Interrupts(){
 				break;
 			}
 		}
+		return 20;
 	}
 }
 
@@ -1514,14 +1520,14 @@ void CPU_Run_Timer(uint8_t cycles_elapsed){
 		if(CS == 0){
 			inc_cycles = 1024;
 		}
-		else if(CS == 0b00000001){
+		else if(CS == 1){
 			inc_cycles = 16;
 		}
-		else if(CS == 0b00000011){
-			inc_cycles = 256;
-		}
-		else if(CS == 0b00000010){
+		else if(CS == 2){
 			inc_cycles = 64;
+		}
+		else if(CS == 3){
+			inc_cycles = 256;
 		}
 
 		cpu.tima_counter+=cycles_elapsed;

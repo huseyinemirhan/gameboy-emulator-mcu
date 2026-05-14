@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include<stdint.h>
+#include <stdio.h>
+#include "../platform/windows/debug.h"
+
 
 
 void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
@@ -41,8 +44,8 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
 	default: cart->ext_ram_size = 0; break;
 	}
 
-	if(cart->ext_ram_size > 0){
-		//cart->ext_ram = (uint8_t *)malloc(cart->ext_ram_size); NO SPACE read from sd
+	if(cart->ext_ram_size > 0){ //No Extra RAM For Now
+		//cart->ext_ram = (uint8_t *)malloc(cart->ext_ram_size);
 		//memset(cart->ext_ram, 0x00 , cart->ext_ram_size);
 	}
 	else{
@@ -54,28 +57,8 @@ void Cartridge_Init(Cartridge *cart, const uint8_t *rom_header){
 	cart-> ram_bank = 0;
 	cart-> ram_enabled = 0;
 	cart-> banking_mode = 0;
-	#ifdef DEBUG
-    printf("=== Cartridge Info ===\n");
-    printf("Title: ");
-    for (int i = TITLE_START_ADDR; i <= TITLE_END_ADDR && rom_data[i]; i++) {
-        printf("%c", rom_data[i]);
-    }
-    printf("\n");
-    
-    printf("Type: ");
-    switch(cart->mbc_type) {
-        case NO_MBC: printf("ROM Only\n"); break;
-        case MBC1:   printf("MBC1\n"); break;
-        case MBC2:   printf("MBC2\n"); break;
-        case MBC3:   printf("MBC3\n"); break;
-        case MBC5:   printf("MBC5\n"); break;
-    }
-    
-    printf("ROM Size: %d KB (%d banks)\n", cart->rom_size / 1024, cart->rom_bank_count);
-    printf("RAM Size: %d KB\n", cart->ext_ram_size / 1024);
-    printf("CGB Flag: 0x%02X\n", rom_data[CGB_FLAG_ADDR]);
-    printf("======================\n");
-    #endif
+
+
 }
 	
 
@@ -87,7 +70,7 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
 		break;
 
 	case MBC1:
-		if(addr >= MBC1_RAM_ENABLE_START && addr <= MBC1_RAM_ENABLE_END){
+		if(addr <= MBC1_RAM_ENABLE_END){
 
             cart->ram_enabled = (0b00001111 & val) == 0x0A ? 1:0;
         }
@@ -103,7 +86,7 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
             }
 
             cart->rom_bank %= cart->rom_bank_count;
-            Switch_rom_bank(cart, cart->rom_bank);
+            switch_rom_bank(cart, cart->rom_bank);
 
         }
 
@@ -117,7 +100,7 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
 				cart->rom_bank = (cart->rom_bank & 0b00011111) | (upper_bits << 5); 
 				
 				cart->rom_bank %= cart->rom_bank_count;
-				Switch_rom_bank(cart, cart->rom_bank);
+				switch_rom_bank(cart, cart->rom_bank);
 				
 			}
 			else{
@@ -143,10 +126,10 @@ void Cartridge_Handle_MBC_Command(Cartridge *cart, uint16_t addr, uint8_t val){
 
 }
 
-void Switch_rom_bank(Cartridge *cart, uint8_t bank_num){
+void switch_rom_bank(Cartridge *cart, uint8_t bank_num){
 
 	uint32_t rom_offset = bank_num * 16384; // 16KB
-	// add something to emulate reading from sd 
+	// add something to emulate reading from flash
 	cart->cur_rom_bank = &cart->rom_bank0[rom_offset];
 
 }
