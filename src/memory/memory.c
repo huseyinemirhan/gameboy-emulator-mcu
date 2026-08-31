@@ -16,10 +16,8 @@ MEMORY memory = {0};
 
 
 void Memory_Init(){
-	// Post-boot IO register values
-	// These are the values the boot ROM leaves behind before jumping to 0x0100
-	// PPU registers - CRITICAL for rendering
-	memory.boot_rom_en = 1;
+
+	memory.boot_rom_en = 0;
 	memory.buttons_state = 0x0F;
 	memory.d_pad_state = 0x0F;
 	memory.io_reg[0x40] = 0x91;  // LCDC: LCD on, BG on, tile data at 0x8000
@@ -159,6 +157,7 @@ void Memory_Write_Byte(uint16_t addr, uint8_t val){
 	if (addr < 0x0100 && memory.boot_rom_en) {
 		memory.boot_rom[addr] = val;
 	}
+
 
 	if (addr >= ERAM_START && addr <= ERAM_END) addr -= 0x2000; //Echo RAM
 

@@ -1,14 +1,13 @@
-#include <stdint.h>
 #include "ppu.h"
 
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "../memory/memory.h"
 #include "../cpu/cpu.h"
-#include <windows.h>
-
-#include "../platform/windows/inputs.h"
+#include "../platform/pico/tft_screen.h"
+#include "../platform/pico/ili9341.h"
 
 
 #define COLOR_WHITE   15
@@ -27,20 +26,25 @@ static const uint32_t GB_COLORS[4] = {
 
 PPU ppu = {0};
 
+static inline uint8_t PPU_Read_IO(uint16_t addr) {
+    return memory.io_reg[addr - IO_REG_START];
+}
+
 void PPU_Init() {
+    PPU_ILI9341_Init();
     ppu.mode = PPU_OAM_SEARCH;
     ppu.cycle_counter = 0;
     ppu.sprite_count = 0x00;
-    memset(ppu.line_buffer, 0, 80);
+    memset(ppu.line_buffer, 0, sizeof(ppu.line_buffer));
 }
 
 void PPU_Step(uint8_t cycles) {
-    uint8_t lcdc = Memory_Read_Byte(LCDC_REG);
+    uint8_t lcdc = PPU_Read_IO(LCDC_REG);
     if (!(lcdc & LCDC_ENABLE)) {
         return;
     }
     ppu.cycle_counter += cycles;
-    uint8_t stat = Memory_Read_Byte(STAT_REG);
+    uint8_t stat = PPU_Read_IO(STAT_REG);
 
     switch (ppu.mode) {
         case PPU_OAM_SEARCH:
@@ -60,12 +64,12 @@ void PPU_Step(uint8_t cycles) {
 
                 PPU_Render_Scanline();
 
-                uint8_t ly = Memory_Read_Byte(0xFF44);
+                uint8_t ly = PPU_Read_IO(0xFF44);
                 PPU_Line_Complete(ly);
 
                 if (stat & STAT_HBLANK_INT) {
-                    uint8_t if_reg = Memory_Read_Byte(IF_REG);
-                    Memory_Write_Byte(IF_REG, if_reg | 0x02);
+                    uint8_t if_reg = PPU_Read_IO(IF_REG);
+                    memory.io_reg[0x0F] = if_reg | 0x02;
                 }
             }
             break;
@@ -73,34 +77,33 @@ void PPU_Step(uint8_t cycles) {
         case PPU_H_BLANK:
             if (ppu.cycle_counter >= 204) {
                 ppu.cycle_counter -= 204;
-
-                uint8_t ly = Memory_Read_Byte(0xFF44);
+                uint8_t ly = PPU_Read_IO(0xFF44);
                 ly++;
-                Memory_Write_Byte(0xFF44, ly);
+                memory.io_reg[0x44] = ly;
 
                 if (ly >= 144) {
                     ppu.mode = PPU_V_BLANK;
-                    uint8_t if_reg = Memory_Read_Byte(IF_REG);
-                    Memory_Write_Byte(IF_REG, if_reg | 0x01);
+                    uint8_t if_reg = PPU_Read_IO(IF_REG);
+                    memory.io_reg[0x0F] = if_reg | 0x01;
 
                     if (stat & STAT_VBLANK_INT) {
-                        if_reg = Memory_Read_Byte(IF_REG);
-                        Memory_Write_Byte(IF_REG, if_reg | 0x02);
+                        if_reg = PPU_Read_IO(IF_REG);
+                        memory.io_reg[0x0F] = if_reg | 0x02;
                     }
                 } else {
                     ppu.mode = PPU_OAM_SEARCH;
                     if (stat & STAT_OAM_INT) {
-                        uint8_t if_reg = Memory_Read_Byte(IF_REG);
-                        Memory_Write_Byte(IF_REG, if_reg | 0x02);
+                        uint8_t if_reg = PPU_Read_IO(IF_REG);
+                        memory.io_reg[0x0F] = if_reg | 0x02;
                     }
                 }
 
-                uint8_t lyc = Memory_Read_Byte(0xFF45);
+                uint8_t lyc = PPU_Read_IO(0xFF45);
                 if (ly == lyc) {
                     stat |= STAT_LYC_COMPARE;
                     if (stat & STAT_LYC_INT) {
-                        uint8_t if_reg = Memory_Read_Byte(IF_REG);
-                        Memory_Write_Byte(IF_REG, if_reg | 0x02);
+                        uint8_t if_reg = PPU_Read_IO(IF_REG);
+                        memory.io_reg[0x0F] = if_reg | 0x02;
                     }
                 } else {
                     stat &= ~STAT_LYC_COMPARE;
@@ -112,26 +115,26 @@ void PPU_Step(uint8_t cycles) {
             if (ppu.cycle_counter >= 456) {
                 ppu.cycle_counter -= 456;
 
-                uint8_t ly = Memory_Read_Byte(0xFF44);
+                uint8_t ly = PPU_Read_IO(0xFF44);
                 ly++;
-                Memory_Write_Byte(0xFF44, ly);
+                memory.io_reg[0x44] = ly;
 
                 if (ly >= 154) {
                     ly = 0;
-                    Memory_Write_Byte(0xFF44, ly);
+                    memory.io_reg[0x44] = ly;
                     ppu.mode = PPU_OAM_SEARCH;
                     if (stat & STAT_OAM_INT) {
-                        uint8_t if_reg = Memory_Read_Byte(IF_REG);
-                        Memory_Write_Byte(IF_REG, if_reg | 0x02);
+                        uint8_t if_reg = PPU_Read_IO(IF_REG);
+                        memory.io_reg[0x0F] = if_reg | 0x02;
                     }
                 }
 
-                uint8_t lyc = Memory_Read_Byte(0xFF45);
+                uint8_t lyc = PPU_Read_IO(0xFF45);
                 if (ly == lyc) {
                     stat |= STAT_LYC_COMPARE;
                     if (stat & STAT_LYC_INT) {
-                        uint8_t if_reg = Memory_Read_Byte(IF_REG);
-                        Memory_Write_Byte(IF_REG, if_reg | 0x02);
+                        uint8_t if_reg = PPU_Read_IO(IF_REG);
+                        memory.io_reg[0x0F] = if_reg | 0x02;
                     }
                 } else {
                     stat &= ~STAT_LYC_COMPARE;
@@ -141,11 +144,11 @@ void PPU_Step(uint8_t cycles) {
     }
 
     stat = (stat & ~STAT_MODE_MASK) | (ppu.mode & STAT_MODE_MASK);
-    Memory_Write_Byte(STAT_REG, stat);
+    memory.io_reg[0x41] = stat;
 }
 
 void PPU_Fetch_Sprite() {
-    uint8_t lcdc = Memory_Read_Byte(LCDC_REG);
+    uint8_t lcdc = PPU_Read_IO(LCDC_REG);
 
     if (!(lcdc & LCDC_OBJ_EN)) {
         ppu.sprite_count = 0x00;
@@ -153,15 +156,15 @@ void PPU_Fetch_Sprite() {
     }
 
     uint8_t sprite_height = (lcdc & LCDC_OBJ_SIZE) ? 16 : 8;
-    uint8_t ly = Memory_Read_Byte(0xFF44);
+    uint8_t ly = PPU_Read_IO(0xFF44);
     ppu.sprite_count = 0;
 
     for (uint8_t i = 0; i < 40 && ppu.sprite_count < 10; i++) {
-        uint16_t oam_addr = 0xFE00 + (i * 4);
-        uint8_t sprite_y = Memory_Read_Byte(oam_addr);
-        uint8_t sprite_x = Memory_Read_Byte(oam_addr + 1);
-        uint8_t tile_num = Memory_Read_Byte(oam_addr + 2);
-        uint8_t flags = Memory_Read_Byte(oam_addr + 3);
+        uint16_t oam_addr = i * 4;
+        uint8_t sprite_y = memory.oam[oam_addr];
+        uint8_t sprite_x = memory.oam[oam_addr + 1];
+        uint8_t tile_num = memory.oam[oam_addr + 2];
+        uint8_t flags = memory.oam[oam_addr + 3];
 
         sprite_y -= 16;
         sprite_x -= 8;
@@ -181,7 +184,7 @@ static uint8_t PPU_Apply_Palette(uint8_t palette_reg, uint8_t color_idx) {
 }
 
 void PPU_Render_Scanline() {
-    uint8_t lcdc = Memory_Read_Byte(LCDC_REG);
+    uint8_t lcdc = PPU_Read_IO(LCDC_REG);
 
     memset(ppu.line_buffer, 0, sizeof(ppu.line_buffer));
 
@@ -195,54 +198,64 @@ void PPU_Render_Scanline() {
 }
 
 void PPU_Render_Background_Line() {
-    uint8_t lcdc = Memory_Read_Byte(LCDC_REG);
-    uint8_t ly = Memory_Read_Byte(0xFF44);
-    uint8_t scy = Memory_Read_Byte(0xFF42);
-    uint8_t scx = Memory_Read_Byte(0xFF43);
-    uint8_t bgp = Memory_Read_Byte(0xFF47);
+    uint8_t lcdc = PPU_Read_IO(LCDC_REG);
+    uint8_t ly = PPU_Read_IO(0xFF44);
+    uint8_t scy = PPU_Read_IO(0xFF42);
+    uint8_t scx = PPU_Read_IO(0xFF43);
+    uint8_t bgp = PPU_Read_IO(0xFF47);
 
-    uint16_t bg_map_base = (lcdc & LCDC_BG_MAP) ? 0x9C00 : 0x9800;
-    uint16_t tile_data_base = (lcdc & LCDC_TILE_SEL) ? 0x8000 : 0x8800;
+    const uint8_t* vram = memory.vram;
+    uint16_t bg_map_base = (lcdc & LCDC_BG_MAP) ? 0x1C00 : 0x1800;
 
     uint8_t y_in_map = (ly + scy);
     uint8_t map_row = (y_in_map / 8) & 0x1F;
     uint8_t y_in_tile = y_in_map % 8;
+    uint8_t map_col = scx >> 3;
+    uint8_t x_in_tile = scx & 0x07;
+    int screen_x = 0;
 
-    for (int x = 0; x < SCREEN_WIDTH; x++) {
-        uint8_t x_in_map = (x + scx);
-        uint8_t map_col = (x_in_map / 8) & 0x1F;
-        uint8_t x_in_tile = x_in_map % 8;
-
-        uint16_t map_addr = bg_map_base + (map_row * 32) + map_col;
-        uint8_t tile_num = Memory_Read_Byte(map_addr);
+    while (screen_x < SCREEN_WIDTH) {
+        uint16_t map_index = bg_map_base + (map_row * 32) + (map_col & 0x1F);
+        uint8_t tile_num = vram[map_index];
 
         uint16_t tile_addr;
         if (lcdc & LCDC_TILE_SEL) {
-            tile_addr = 0x8000 + (tile_num * 16) + (y_in_tile * 2);
+            tile_addr = (tile_num * 16) + (y_in_tile * 2);
         } else {
-            tile_addr = 0x9000 + ((int8_t)tile_num * 16) + (y_in_tile * 2);
+            tile_addr = 0x1000 + ((int8_t)tile_num * 16) + (y_in_tile * 2);
         }
-        uint8_t tile_byte1 = Memory_Read_Byte(tile_addr);
-        uint8_t tile_byte2 = Memory_Read_Byte(tile_addr + 1);
 
-        uint8_t bit_pos = 7 - x_in_tile;
-        uint8_t palette_idx = ((tile_byte2 >> bit_pos) & 1) << 1 | ((tile_byte1 >> bit_pos) & 1);
+        uint8_t tile_byte1 = vram[tile_addr];
+        uint8_t tile_byte2 = vram[tile_addr + 1];
 
-        uint8_t color_idx = PPU_Apply_Palette(bgp, palette_idx);
+        while (x_in_tile < 8 && screen_x < SCREEN_WIDTH) {
+            uint8_t bit_pos = 7 - x_in_tile;
+            uint8_t palette_idx = ((tile_byte2 >> bit_pos) & 1) << 1 | ((tile_byte1 >> bit_pos) & 1);
+            uint8_t color_idx = PPU_Apply_Palette(bgp, palette_idx);
+            uint8_t byte_idx = screen_x >> 1;
 
-        uint8_t byte_idx = x / 2;
-        if (x % 2 == 0) {
-            ppu.line_buffer[byte_idx] = (ppu.line_buffer[byte_idx] & 0x0F) | (color_idx << 4);
-        } else {
-            ppu.line_buffer[byte_idx] = (ppu.line_buffer[byte_idx] & 0xF0) | color_idx;
+            if ((screen_x & 1) == 0) {
+                ppu.line_buffer[byte_idx] = (ppu.line_buffer[byte_idx] & 0x0F) | (color_idx << 4);
+            } else {
+                ppu.line_buffer[byte_idx] = (ppu.line_buffer[byte_idx] & 0xF0) | color_idx;
+            }
+
+            x_in_tile++;
+            screen_x++;
         }
+
+        x_in_tile = 0;
+        map_col = (map_col + 1) & 0x1F;
     }
 }
 
-    void PPU_Render_Sprite_Line(void) {
-    uint8_t lcdc = Memory_Read_Byte(LCDC_REG);
-    uint8_t ly = Memory_Read_Byte(0xFF44);
+void PPU_Render_Sprite_Line(void) {
+    uint8_t lcdc = PPU_Read_IO(LCDC_REG);
+    uint8_t ly = PPU_Read_IO(0xFF44);
     uint8_t sprite_height = (lcdc & LCDC_OBJ_SIZE) ? 16 : 8;
+    uint8_t obp0 = PPU_Read_IO(0xFF48);
+    uint8_t obp1 = PPU_Read_IO(0xFF49);
+    const uint8_t* vram = memory.vram;
 
     for (int i = 0; i < ppu.sprite_count; i++) {
         uint8_t sprite_x = ppu.sprites[i].x;
@@ -250,7 +263,7 @@ void PPU_Render_Background_Line() {
         uint8_t tile_num = ppu.sprites[i].tile;
         uint8_t flags = ppu.sprites[i].flags;
 
-        uint8_t palette = (flags & 0x10) ? Memory_Read_Byte(0xFF49) : Memory_Read_Byte(0xFF48);
+        uint8_t palette = (flags & 0x10) ? obp1 : obp0;
 
         uint8_t flip_x = flags & 0x20;
         uint8_t flip_y = flags & 0x40;
@@ -261,9 +274,9 @@ void PPU_Render_Background_Line() {
             y_in_sprite = sprite_height - 1 - y_in_sprite;
         }
 
-        const uint16_t tile_addr = 0x8000 + (tile_num * 16) + (y_in_sprite * 2);
-        const uint8_t tile_byte1 = Memory_Read_Byte(tile_addr);
-        const uint8_t tile_byte2 = Memory_Read_Byte(tile_addr + 1);
+        const uint16_t tile_addr = (tile_num * 16) + (y_in_sprite * 2);
+        const uint8_t tile_byte1 = vram[tile_addr];
+        const uint8_t tile_byte2 = vram[tile_addr + 1];
 
         for (int px = 0; px < 8; px++) {
             int screen_x = sprite_x + px;

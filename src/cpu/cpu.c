@@ -1437,6 +1437,15 @@ const opcode_func opcode_func_table[256] = {
 };
 
 void CPU_Init(){
+	if (memory.boot_rom_en) {
+		// The boot ROM's first instruction is LD SP,$FFFE and it sets every
+		// register itself, so it must run from a cold start rather than the
+		// post-boot state below.
+		cpu.PC = 0x0000;
+		cpu.SP = 0x0000;
+		return;
+	}
+
 	cpu.A = 0x01;
 	cpu.B = 0x00;
 	cpu.C = 0x13;
@@ -1445,7 +1454,7 @@ void CPU_Init(){
 	cpu.H = 0x01;
 	cpu.L = 0x4D;
 	cpu.F = 0xB0;
-	cpu.PC = 0x0;
+	cpu.PC = 0x100;
 	cpu.SP = 0xFFFE;
 }
 
@@ -1467,13 +1476,13 @@ int CPU_Step(){
 int CPU_Handle_Interrupts(){
 
 	if(!cpu.IME){
-		if((memory.ie & Memory_Read_Byte(0xFF0F))){
+		if((memory.ie & memory.io_reg[0x0F])){
 			cpu.halted = 0;
 		}
 		return 0;
 	}
 
-	uint8_t IF = Memory_Read_Byte(0xFF0F);
+	uint8_t IF = memory.io_reg[0x0F];
 	uint8_t IE = memory.ie;
 	uint8_t handling = (IE & IF);
 
@@ -1485,7 +1494,7 @@ int CPU_Handle_Interrupts(){
 		cpu.halted = 0;
 		for(int i = 0; i < 5;i++){
 			if((handling & (1<<i))){
-				Memory_Write_Byte(0xFF0F,IF & ~(1 << i));
+				memory.io_reg[0x0F] = IF & ~(1 << i);
 				cpu.SP--;
 				Memory_Write_Byte(cpu.SP, (cpu.PC>>8) & 0xFF);
 				cpu.SP--;
@@ -1500,11 +1509,11 @@ int CPU_Handle_Interrupts(){
 }
 
 void CPU_Run_Timer(uint8_t cycles_elapsed){
-	uint8_t DIV = Memory_Read_Byte(0xFF04);
-	uint8_t TMA = Memory_Read_Byte(0xFF06);
-	uint8_t TAC = Memory_Read_Byte(0xFF07);
-	uint8_t TIMA = Memory_Read_Byte(0xFF05);
-	uint8_t IF = Memory_Read_Byte(0xFF0F);
+	uint8_t DIV = memory.io_reg[0x04];
+	uint8_t TMA = memory.io_reg[0x06];
+	uint8_t TAC = memory.io_reg[0x07];
+	uint8_t TIMA = memory.io_reg[0x05];
+	uint8_t IF = memory.io_reg[0x0F];
 	uint8_t CS = (TAC & 0b00000011);
 	uint8_t TIMA_enabled = (TAC & 0b00000100) >> 2;
 	int inc_cycles = 1024;
@@ -1537,7 +1546,7 @@ void CPU_Run_Timer(uint8_t cycles_elapsed){
 			TIMA++;
 
 			if(TIMA == 0){
-				Memory_Write_Byte(0xFF0F,(IF | 0b00000100));
+				memory.io_reg[0x0F] = IF | 0b00000100;
 				TIMA = TMA;
 			}
 		}
